@@ -1,54 +1,52 @@
-name: TikTok Playwright Scraper
+name: TikTok Video Scraper
 
-# Allows manual runs and scheduled runs every 5 minutes (UTC)
+# Allow manual triggers with workflow_dispatch
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '*/5 * * * *'   # every 5 minutes (UTC)
+    inputs:
+      video_url:
+        description: 'TikTok Video URL'
+        required: true
+        default: 'https://www.tiktok.com/@poriaktar250/video/7561827051553000724'
+      headless:
+        description: 'Run browser headless (true/false)'
+        required: false
+        default: 'true'
 
 jobs:
-  run-scraper:
+  scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      # 1️⃣ Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - name: Set up Python
+      # 2️⃣ Setup Python
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: '3.11'
 
-      - name: Cache pip
-        uses: actions/cache@v4
-        id: pip-cache
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install Python dependencies
+      # 3️⃣ Install dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install playwright
+          playwright install
 
-      - name: Install Playwright browsers
-        run: |
-          python -m playwright install --with-deps chromium
-
-      - name: Run scraper
-        run: python tiktok_playwright_scraper.py
+      # 4️⃣ Run the scraper with VIDEO_URL input
+      - name: Run TikTok Playwright Scraper
         env:
-          ACCOUNT: poriaktar250
-          HEADLESS: "true"
+          VIDEO_URL: ${{ github.event.inputs.video_url }}
+          HEADLESS: ${{ github.event.inputs.headless }}
+        run: |
+          python tiktok_playwright_scraper.py
 
-      - name: Upload log artifact
-        if: always()
-        uses: actions/upload-artifact@v4
+      # 5️⃣ Upload logs and CSV report as artifacts
+      - name: Upload logs and CSV
+        uses: actions/upload-artifact@v3
         with:
-          name: tiktok-scrape-logs
+          name: tiktok-scraper-output
           path: |
             tiktok_playwright_log.txt
             tiktok_playwright_report.csv
