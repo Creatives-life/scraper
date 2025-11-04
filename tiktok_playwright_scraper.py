@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 TikTok Playwright Scraper with:
- - Random video selection from a profile
+ - Random video selection from a profile using embedded JSON
  - Views, likes, top comments scraping
  - Simulated comment with hashtags
  - Logs and CSV report
@@ -37,12 +37,11 @@ CUSTOM_COMMENTS = [
     "So creative and fun ✨"
 ]
 
-HASHTAGS = ["#trending", "#foryou", "#viral", "#awesome", "#fun", "#towsif_aktar"]
+HASHTAGS = ["#trending", "#foryou", "#viral", "#awesome", "#fun", "#creative"]
 
 SCROLL_ITERATIONS = 6
-MAX_VIDEO_LINKS = 50
-NAV_TIMEOUT_MS = 30000
-WAIT_FOR_VIDEO_SELECTOR_MS = 15000
+NAV_TIMEOUT_MS = 40000
+WAIT_FOR_JSON_MS = 15000
 # ---------------------------
 
 def log(msg):
@@ -69,41 +68,29 @@ def human_scroll(page, steps=6, pause_min=0.8, pause_max=2.0):
         page.evaluate("window.scrollBy(0, window.innerHeight * 0.9);")
         time.sleep(random.uniform(pause_min, pause_max))
 
-def collect_video_links(page, profile_url, scroll_iterations=SCROLL_ITERATIONS, max_links=MAX_VIDEO_LINKS):
+def collect_video_links(page, profile_url):
     log(f"Opening profile page: {profile_url}")
     page.goto(profile_url, timeout=NAV_TIMEOUT_MS)
+    page.set_extra_http_headers({"User-Agent": random.choice(USER_AGENTS), "Accept-Language": "en-US,en;q=0.9"})
+    time.sleep(3 + random.uniform(0, 2))
+
+    # Scroll a bit to trigger JSON loading
+    human_scroll(page, steps=SCROLL_ITERATIONS, pause_min=1.0, pause_max=2.0)
+
+    # Extract embedded JSON
+    video_links = set()
     try:
-        page.set_extra_http_headers({"User-Agent": random.choice(USER_AGENTS), "Accept-Language": "en-US,en;q=0.9"})
-    except Exception:
-        pass
+        maybe_json = page.evaluate(
+            """() => window['SIGI_STATE'] || window['__NEXT_DATA__'] || {}"""
+        )
+        item_module = maybe_json.get("ItemModule") or maybe_json.get("itemModule") or {}
+        for vid_id in item_module.keys():
+            video_links.add(f"https://www.tiktok.com/@{ACCOUNT}/video/{vid_id}")
+    except Exception as e:
+        log(f"Error extracting JSON video links: {e}")
 
-    try:
-        page.wait_for_selector("a[href*='/video/']", timeout=WAIT_FOR_VIDEO_SELECTOR_MS)
-    except PlaywrightTimeoutError:
-        log("Timed out waiting for video links (profile may be private or heavily JS-based).")
-
-    links = set()
-    for _ in range(scroll_iterations):
-        human_scroll(page, steps=2, pause_min=1.0, pause_max=2.5)
-        anchors = page.query_selector_all("a[href*='/video/']")
-        for a in anchors:
-            try:
-                href = a.get_attribute("href")
-                if href and "/video/" in href:
-                    if href.startswith("/"):
-                        href = urljoin("https://www.tiktok.com", href)
-                    links.add(href.split("?")[0])
-                    if len(links) >= max_links:
-                        break
-            except Exception:
-                continue
-        if len(links) >= max_links:
-            break
-        time.sleep(random.uniform(0.8, 2.0))
-
-    links_list = list(links)
-    log(f"Collected {len(links_list)} unique video links.")
-    return links_list
+    log(f"Collected {len(video_links)} unique video links from JSON.")
+    return list(video_links)
 
 def scrape_video(page, video_url):
     log(f"Navigating to video: {video_url}")
@@ -138,26 +125,6 @@ def scrape_video(page, video_url):
                 continue
     except Exception:
         pass
-
-    # fallback to JSON in page
-    if (views == "N/A" or likes == "N/A") and not top_comments:
-        try:
-            maybe_json = page.evaluate("""() => {
-                try {
-                    return window['SIGI_STATE'] || window['__INITIAL_DATA__'] || window['__NEXT_DATA__'] || null;
-                } catch(e) { return null; }
-            }""")
-            if isinstance(maybe_json, dict):
-                item_module = maybe_json.get("ItemModule") or maybe_json.get("itemModule")
-                if isinstance(item_module, dict):
-                    for vid, meta in item_module.items():
-                        stats = meta.get("stats") or {}
-                        if stats:
-                            views = stats.get("playCount", views)
-                            likes = stats.get("diggCount", likes)
-                            break
-        except Exception:
-            pass
 
     return {
         "url": video_url,
