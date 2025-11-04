@@ -1,10 +1,10 @@
 name: TikTok Playwright Scraper
 
-# Allows manual runs and scheduled runs
+# Allows manual runs and scheduled runs every 5 minutes (UTC)
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/6 * * * *'   # every 6 hours (UTC) — edit as needed
+    - cron: '*/5 * * * *'   # every 5 minutes (UTC)
 
 jobs:
   run-scraper:
@@ -41,7 +41,6 @@ jobs:
       - name: Run scraper
         run: python tiktok_playwright_scraper.py
         env:
-          # Optional: customize account & headless mode
           ACCOUNT: poriaktar250
           HEADLESS: "true"
 
