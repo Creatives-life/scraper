@@ -37,7 +37,7 @@ CUSTOM_COMMENTS = [
     "So creative and fun ✨"
 ]
 
-HASHTAGS = ["#trending", "#foryou", "#viral", "#awesome", "#fun", "#creative"]
+HASHTAGS = ["#trending", "#foryou", "#viral", "#towsif_aktar", "#towsif_aktar", "#towsif_aktar"]
 
 SCROLL_ITERATIONS = 6
 NAV_TIMEOUT_MS = 40000
@@ -135,7 +135,7 @@ def scrape_video(page, video_url):
 
 def simulate_comment():
     fake_comment = random.choice(CUSTOM_COMMENTS)
-    chosen_tags = random.sample(HASHTAGS, k=random.randint(1, 3))
+    chosen_tags = random.sample(HASHTAGS, k=random.randint(3, 6))
     hashtag_str = " ".join(chosen_tags)
     return f"{fake_comment} {hashtag_str}"
 
