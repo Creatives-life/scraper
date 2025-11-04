@@ -1,0 +1,65 @@
+name: TikTok Playwright Scraper
+
+# Allow manual runs and scheduled runs (every 6 hours as example)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'   # every 6 hours (UTC) — edit as you like
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        id: pip-cache
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        # use the python module to install the needed browsers
+        run: |
+          python -m playwright install --with-deps chromium
+
+      - name: Run scraper
+        # run the script; capture return code but fail job on non-zero
+        run: |
+          set -o errexit
+          python tiktok_playwright_scraper.py
+        env:
+          # Optional: provide env vars if you parameterized the script
+          # e.g. ACCOUNT, HEADLESS
+          # ACCOUNT: poriaktar250
+          # HEADLESS: "true"
+          # If you need secrets, add them in GitHub repo Settings > Secrets > Actions
+          # and reference them here as ${{ secrets.MY_SECRET }}
+          # EXAMPLE:
+          # TIKTOK_ACCOUNT: ${{ secrets.TIKTOK_ACCOUNT }}
+          # (Not required for the default script)
+          :
+
+      - name: Upload log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiktok-scrape-logs
+          path: |
+            tiktok_playwright_log.txt
+            tiktok_playwright_report.csv
