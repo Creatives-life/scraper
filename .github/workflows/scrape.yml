@@ -1,6 +1,5 @@
 name: TikTok Video Scraper
 
-# Allow manual triggers with workflow_dispatch
 on:
   workflow_dispatch:
     inputs:
@@ -16,14 +15,18 @@ on:
 jobs:
   scrape:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
-      # 1️⃣ Checkout repo
+      # 1️⃣ Checkout repository
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # 2️⃣ Setup Python
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -32,9 +35,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install playwright
-          playwright install
+          playwright install chromium
 
-      # 4️⃣ Run the scraper with VIDEO_URL input
+      # 4️⃣ Run the scraper
       - name: Run TikTok Playwright Scraper
         env:
           VIDEO_URL: ${{ github.event.inputs.video_url }}
@@ -42,9 +45,9 @@ jobs:
         run: |
           python tiktok_playwright_scraper.py
 
-      # 5️⃣ Upload logs and CSV report as artifacts
+      # 5️⃣ Upload logs and CSV report (✅ new action syntax)
       - name: Upload logs and CSV
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@main
         with:
           name: tiktok-scraper-output
           path: |
